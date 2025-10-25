@@ -5,7 +5,6 @@ import '../../../app/app.locator.dart';
 import '../../../models/alarm_model.dart';
 import '../../../services/alarm_service.dart';
 import '../../../services/alarm_scheduler_service.dart';
-import '../../../constants/app_constants.dart';
 
 class AddAlarmViewModel extends BaseViewModel {
   final AlarmService _alarmService = locator<AlarmService>();
