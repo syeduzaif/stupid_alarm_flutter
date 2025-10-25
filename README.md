@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🚨 Stupid Alarm
 
 > "You can't snooze the alarm until you actually wake up and sit up!"
@@ -135,3 +136,7 @@ Part of the "Let's Create Stupid Apps with Me" series where we build funny yet s
 ---
 
 **Built with ❤️ using Flutter and Stacked Architecture**
+=======
+# stupid_alarm_flutter
+A Flutter app that won’t let you snooze your alarm until you sit up 😴🚫. Built using Flutter + Stacked architecture for my YouTube series “Let’s Create Stupid App with Me.”
+>>>>>>> dd8ecb4eb8dab15d54aca7cda4a452ba2468ac7f
