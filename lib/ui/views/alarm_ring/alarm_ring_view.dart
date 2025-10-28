@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:stacked/stacked.dart';
-import 'package:sensors_plus/sensors_plus.dart';
-import 'dart:async';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_constants.dart';
 import '../../../models/alarm_model.dart';

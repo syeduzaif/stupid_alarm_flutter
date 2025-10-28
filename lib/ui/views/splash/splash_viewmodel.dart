@@ -1,6 +1,5 @@
 import 'package:stacked/stacked.dart';
 import 'package:stacked_services/stacked_services.dart';
-import 'package:flutter/material.dart';
 import '../home/home_view.dart';
 
 class SplashViewModel extends BaseViewModel {
