@@ -27,7 +27,6 @@ class AlarmSchedulerService {
         await _notificationService.scheduleAlarm(alarm);
       }
     }
-    print('Scheduled ${alarms.length} alarms');
   }
 
   Future<void> scheduleAlarm(AlarmModel alarm) async {

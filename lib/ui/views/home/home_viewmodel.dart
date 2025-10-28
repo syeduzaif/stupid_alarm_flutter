@@ -5,11 +5,13 @@ import '../../../app/app.locator.dart';
 import '../../../models/alarm_model.dart';
 import '../../../services/alarm_service.dart';
 import '../../../services/alarm_scheduler_service.dart';
+import '../../../services/notification_service.dart';
 import 'add_alarm_view.dart';
 
 class HomeViewModel extends BaseViewModel {
   final AlarmService _alarmService = locator<AlarmService>();
-  final AlarmSchedulerService _alarmScheduler = locator<AlarmSchedulerService>();
+  final AlarmSchedulerService _alarmScheduler =
+      locator<AlarmSchedulerService>();
   final NavigationService _navigationService = NavigationService();
 
   List<AlarmModel> _alarms = [];
@@ -27,7 +29,7 @@ class HomeViewModel extends BaseViewModel {
   Future<void> loadAlarms() async {
     setBusy(true);
     _alarms = await _alarmService.getAllAlarms();
-    print('Loaded ${_alarms.length} alarms: $_alarms');
+
     setBusy(false);
   }
 
@@ -54,7 +56,9 @@ class HomeViewModel extends BaseViewModel {
   }
 
   void addAlarm() async {
-    final result = await _navigationService.navigateToView(const AddAlarmView());
+    final result = await _navigationService.navigateToView(
+      const AddAlarmView(),
+    );
     if (result == true) {
       // Refresh alarms when returning from add alarm
       await loadAlarms();
@@ -64,7 +68,9 @@ class HomeViewModel extends BaseViewModel {
   void editAlarm(String alarmId) async {
     final alarm = await _alarmService.getAlarmById(alarmId);
     if (alarm != null) {
-      final result = await _navigationService.navigateToView(AddAlarmView(existingAlarm: alarm));
+      final result = await _navigationService.navigateToView(
+        AddAlarmView(existingAlarm: alarm),
+      );
       if (result == true) {
         // Refresh alarms when returning from edit alarm
         await loadAlarms();
@@ -75,24 +81,39 @@ class HomeViewModel extends BaseViewModel {
   void navigateToSettings() {
     // TODO: Implement settings navigation
     // For now, show a placeholder dialog
-    print('Settings navigation not yet implemented');
   }
 
   void testAlarm() async {
-    // Create a test alarm that rings in 5 seconds
+    // Test notifications in 3 ways:
+    // 1. Immediate notification
+    // 2. Scheduled notification in 10 seconds
+    // 3. Regular alarm scheduled 1 minute from now
+
+    final notificationService = NotificationService();
+
+    // Test 1: Immediate notification
+    await notificationService.showTestNotification();
+
+    // Test 2: Scheduled notification in 10 seconds
+
+    await notificationService.scheduleTestAlarmIn10Seconds();
+
+    // Test 3: Create a test alarm that rings in 1 minute
     final now = DateTime.now();
-    final testDateTime = now.add(const Duration(seconds: 5));
-    final testTime = TimeOfDay(hour: testDateTime.hour, minute: testDateTime.minute);
-    
+    final testDateTime = now.add(const Duration(minutes: 1));
+    final testTime = TimeOfDay(
+      hour: testDateTime.hour,
+      minute: testDateTime.minute,
+    );
+
     final testAlarm = AlarmModel(
       id: 'test_${DateTime.now().millisecondsSinceEpoch}',
-      label: 'Test Alarm',
+      label: 'Test Alarm (1 min)',
       time: testTime,
       isEnabled: true,
       isSmartMode: false,
     );
-    
-    print('Creating test alarm for ${testTime.hour}:${testTime.minute.toString().padLeft(2, '0')}');
+
     await _alarmScheduler.scheduleAlarm(testAlarm);
   }
 
