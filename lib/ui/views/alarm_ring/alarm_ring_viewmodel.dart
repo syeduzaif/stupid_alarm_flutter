@@ -21,11 +21,11 @@ class AlarmRingViewModel extends BaseViewModel {
 
   void initialize(AlarmModel alarmModel) {
     alarm = alarmModel;
-    
+
     if (alarm!.isSmartMode) {
       _startMotionDetection();
     }
-    
+
     notifyListeners();
   }
 
@@ -34,10 +34,14 @@ class AlarmRingViewModel extends BaseViewModel {
     notifyListeners();
 
     // Listen to accelerometer data
-    _accelerometerSubscription = accelerometerEvents.listen((AccelerometerEvent event) {
+    _accelerometerSubscription = accelerometerEvents.listen((
+      AccelerometerEvent event,
+    ) {
       // Calculate the magnitude of acceleration
-      final double magnitude = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
-      
+      final double magnitude = sqrt(
+        event.x * event.x + event.y * event.y + event.z * event.z,
+      );
+
       // Check if the phone is being moved significantly (indicating sitting up)
       if (magnitude > AppConstants.tiltThreshold) {
         _onMotionDetected();
@@ -45,12 +49,9 @@ class AlarmRingViewModel extends BaseViewModel {
     });
 
     // Start a timer to periodically check motion
-    _motionDetectionTimer = Timer.periodic(
-      const Duration(seconds: 1),
-      (timer) {
-        // Motion detection logic is handled in the accelerometer listener
-      },
-    );
+    _motionDetectionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      // Motion detection logic is handled in the accelerometer listener
+    });
   }
 
   void _onMotionDetected() {
@@ -58,7 +59,7 @@ class AlarmRingViewModel extends BaseViewModel {
       isMotionDetected = true;
       isDetectingMotion = false;
       notifyListeners();
-      
+
       // Provide haptic feedback
       _provideHapticFeedback();
     }
@@ -77,23 +78,24 @@ class AlarmRingViewModel extends BaseViewModel {
 
   void stopAlarm() {
     _cleanup();
-    
+
     // Navigate back to home
-    _navigationService.clearStackAndShowView(
-      const HomeView(),
-    );
+    _navigationService.clearStackAndShowView(const HomeView());
   }
 
   void snoozeAlarm() async {
     if (alarm == null) return;
-    
+
     _cleanup();
-    
+
     // Create a snooze alarm that rings after the snooze duration
     final now = DateTime.now();
     final snoozeTime = now.add(Duration(minutes: alarm!.snoozeDuration));
-    final snoozeTimeOfDay = TimeOfDay(hour: snoozeTime.hour, minute: snoozeTime.minute);
-    
+    final snoozeTimeOfDay = TimeOfDay(
+      hour: snoozeTime.hour,
+      minute: snoozeTime.minute,
+    );
+
     final snoozeAlarm = AlarmModel(
       id: '${alarm!.id}_snooze_${now.millisecondsSinceEpoch}',
       label: '${alarm!.label} (Snooze)',
@@ -105,16 +107,12 @@ class AlarmRingViewModel extends BaseViewModel {
       vibrate: alarm!.vibrate,
       snoozeDuration: alarm!.snoozeDuration,
     );
-    
+
     // Schedule the snooze alarm
     await _notificationService.scheduleAlarm(snoozeAlarm);
-    
-    print('Snooze alarm scheduled for ${snoozeTimeOfDay.hour}:${snoozeTimeOfDay.minute.toString().padLeft(2, '0')}');
-    
+
     // Navigate back to home
-    _navigationService.clearStackAndShowView(
-      const HomeView(),
-    );
+    _navigationService.clearStackAndShowView(const HomeView());
   }
 
   void _cleanup() {
