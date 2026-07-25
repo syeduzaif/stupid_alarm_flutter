@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:stacked/stacked.dart';
 import '../../../constants/app_colors.dart';
 import '../../../constants/app_constants.dart';
+import '../../../models/theme_mode_model.dart';
 import 'home_viewmodel.dart';
 
 class HomeView extends StatelessWidget {
@@ -20,12 +21,23 @@ class HomeView extends StatelessWidget {
             actions: [
               IconButton(
                 icon: const Icon(Icons.alarm),
-                onPressed: viewModel.testAlarm,
+                onPressed: () {
+                  viewModel.testAlarm();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Test alarm rings in 5 seconds — lock your phone!',
+                      ),
+                      duration: Duration(seconds: 4),
+                    ),
+                  );
+                },
                 tooltip: 'Test Alarm',
               ),
               IconButton(
                 icon: const Icon(Icons.settings),
-                onPressed: viewModel.navigateToSettings,
+                tooltip: 'Settings',
+                onPressed: () => _showThemeDialog(context, viewModel),
               ),
             ],
           ),
@@ -43,6 +55,44 @@ class HomeView extends StatelessWidget {
     );
   }
 
+  void _showThemeDialog(BuildContext context, HomeViewModel viewModel) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Theme'),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: AppConstants.spacingMD,
+          ),
+          content: RadioGroup<AppThemeMode>(
+            groupValue: viewModel.themeMode,
+            onChanged: (mode) {
+              if (mode != null) viewModel.setThemeMode(mode);
+              Navigator.of(dialogContext).pop();
+            },
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                RadioListTile<AppThemeMode>(
+                  title: Text('System'),
+                  value: AppThemeMode.system,
+                ),
+                RadioListTile<AppThemeMode>(
+                  title: Text('Light'),
+                  value: AppThemeMode.light,
+                ),
+                RadioListTile<AppThemeMode>(
+                  title: Text('Dark'),
+                  value: AppThemeMode.dark,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
@@ -51,7 +101,7 @@ class HomeView extends StatelessWidget {
           Icon(
             Icons.alarm_off,
             size: 100,
-            color: AppColors.textSecondary.withOpacity(0.3),
+            color: AppColors.textSecondary.withValues(alpha: 0.3),
           ),
           const SizedBox(height: AppConstants.spacingMD),
           Text(

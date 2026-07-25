@@ -3,31 +3,30 @@ import 'package:stacked/stacked.dart';
 import 'package:stacked_services/stacked_services.dart';
 import '../../../app/app.locator.dart';
 import '../../../models/alarm_model.dart';
+import '../../../models/theme_mode_model.dart';
 import '../../../services/alarm_service.dart';
 import '../../../services/alarm_scheduler_service.dart';
+import '../../../services/storage_service.dart';
 import 'add_alarm_view.dart';
 
 class HomeViewModel extends BaseViewModel {
   final AlarmService _alarmService = locator<AlarmService>();
   final AlarmSchedulerService _alarmScheduler = locator<AlarmSchedulerService>();
+  final StorageService _storageService = locator<StorageService>();
   final NavigationService _navigationService = NavigationService();
 
   List<AlarmModel> _alarms = [];
   List<AlarmModel> get alarms => _alarms;
 
+  AppThemeMode get themeMode => appThemeModeNotifier.value;
+
   Future<void> initialize() async {
     await loadAlarms();
-  }
-
-  void onModelReady() {
-    // This is called when the view becomes active
-    loadAlarms();
   }
 
   Future<void> loadAlarms() async {
     setBusy(true);
     _alarms = await _alarmService.getAllAlarms();
-    print('Loaded ${_alarms.length} alarms: $_alarms');
     setBusy(false);
   }
 
@@ -72,32 +71,26 @@ class HomeViewModel extends BaseViewModel {
     }
   }
 
-  void navigateToSettings() {
-    // TODO: Implement settings navigation
-    // For now, show a placeholder dialog
-    print('Settings navigation not yet implemented');
+  Future<void> setThemeMode(AppThemeMode mode) async {
+    appThemeModeNotifier.value = mode;
+    await _storageService.setThemeMode(mode);
+    notifyListeners();
   }
 
-  void testAlarm() async {
-    // Create a test alarm that rings in 5 seconds
+  /// Rings in a few seconds so the whole flow (notification → full-screen
+  /// launch → ring screen → sit-up verification) can be tried on demand.
+  Future<void> testAlarm() async {
     final now = DateTime.now();
-    final testDateTime = now.add(const Duration(seconds: 5));
-    final testTime = TimeOfDay(hour: testDateTime.hour, minute: testDateTime.minute);
-    
-    final testAlarm = AlarmModel(
-      id: 'test_${DateTime.now().millisecondsSinceEpoch}',
-      label: 'Test Alarm',
-      time: testTime,
-      isEnabled: true,
-      isSmartMode: false,
-    );
-    
-    print('Creating test alarm for ${testTime.hour}:${testTime.minute.toString().padLeft(2, '0')}');
-    await _alarmScheduler.scheduleAlarm(testAlarm);
-  }
+    final ringAt = now.add(const Duration(seconds: 5));
 
-  @override
-  void dispose() {
-    super.dispose();
+    final testAlarm = AlarmModel(
+      id: 'test_${now.millisecondsSinceEpoch}',
+      label: 'Test Alarm',
+      time: TimeOfDay(hour: ringAt.hour, minute: ringAt.minute),
+      isEnabled: true,
+      isSmartMode: true,
+    );
+
+    await _alarmScheduler.scheduleAlarmAt(testAlarm, ringAt);
   }
 }

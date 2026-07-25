@@ -149,14 +149,18 @@ class AddAlarmView extends StatelessWidget {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: AppConstants.spacingMD),
-            ...AppConstants.alarmSounds.map((sound) {
-              return RadioListTile<String>(
-                title: Text('${sound['icon']} ${sound['name']}'),
-                value: sound['id'],
-                groupValue: viewModel.selectedSound,
-                onChanged: (value) => viewModel.setSelectedSound(value!),
-              );
-            }).toList(),
+            RadioGroup<String>(
+              groupValue: viewModel.selectedSound,
+              onChanged: (value) => viewModel.setSelectedSound(value!),
+              child: Column(
+                children: AppConstants.alarmSounds.map((sound) {
+                  return RadioListTile<String>(
+                    title: Text('${sound['icon']} ${sound['name']}'),
+                    value: sound['id'],
+                  );
+                }).toList(),
+              ),
+            ),
           ],
         ),
       ),
@@ -196,7 +200,7 @@ class AddAlarmView extends StatelessWidget {
               subtitle: const Text('Motion detection required'),
               value: viewModel.isSmartMode,
               onChanged: viewModel.setSmartMode,
-              activeColor: AppColors.accentBlue,
+              activeThumbColor: AppColors.accentBlue,
             ),
           ],
         ),
@@ -226,7 +230,7 @@ class AddAlarmView extends StatelessWidget {
                   label: Text(days[index]),
                   selected: isSelected,
                   onSelected: (selected) => viewModel.toggleRepeatDay(index),
-                  selectedColor: AppColors.primaryRed.withOpacity(0.2),
+                  selectedColor: AppColors.primaryRed.withValues(alpha: 0.2),
                   checkmarkColor: AppColors.primaryRed,
                 );
               }),

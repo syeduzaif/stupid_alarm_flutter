@@ -11,6 +11,7 @@ class AlarmModel {
   final String sound;
   final bool vibrate;
   final int snoozeDuration;
+  final int snoozeCount; // how many times this ring has been snoozed already
 
   AlarmModel({
     required this.id,
@@ -22,6 +23,7 @@ class AlarmModel {
     this.sound = 'default',
     this.vibrate = true,
     this.snoozeDuration = 5,
+    this.snoozeCount = 0,
   });
 
   /// Creates a copy of this alarm with modified fields
@@ -35,6 +37,7 @@ class AlarmModel {
     String? sound,
     bool? vibrate,
     int? snoozeDuration,
+    int? snoozeCount,
   }) {
     return AlarmModel(
       id: id ?? this.id,
@@ -46,6 +49,7 @@ class AlarmModel {
       sound: sound ?? this.sound,
       vibrate: vibrate ?? this.vibrate,
       snoozeDuration: snoozeDuration ?? this.snoozeDuration,
+      snoozeCount: snoozeCount ?? this.snoozeCount,
     );
   }
 
@@ -62,6 +66,7 @@ class AlarmModel {
       'sound': sound,
       'vibrate': vibrate,
       'snoozeDuration': snoozeDuration,
+      'snoozeCount': snoozeCount,
     };
   }
 
@@ -80,6 +85,7 @@ class AlarmModel {
       sound: map['sound'] as String? ?? 'default',
       vibrate: map['vibrate'] as bool? ?? true,
       snoozeDuration: map['snoozeDuration'] as int? ?? 5,
+      snoozeCount: map['snoozeCount'] as int? ?? 0,
     );
   }
 
@@ -96,25 +102,6 @@ class AlarmModel {
     final hour = time.hour > 12 ? time.hour - 12 : (time.hour == 0 ? 12 : time.hour);
     final minute = time.minute.toString().padLeft(2, '0');
     return '$hour:$minute $period';
-  }
-
-  /// Gets the next alarm date
-  DateTime? getNextAlarmDate() {
-    final now = DateTime.now();
-    final alarmDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      time.hour,
-      time.minute,
-    );
-
-    // If alarm time has already passed today, schedule for tomorrow
-    if (alarmDateTime.isBefore(now)) {
-      return alarmDateTime.add(const Duration(days: 1));
-    }
-
-    return alarmDateTime;
   }
 
   @override

@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 import '../models/alarm_model.dart';
 import '../app/app.locator.dart';
 import 'alarm_service.dart';
@@ -27,11 +29,16 @@ class AlarmSchedulerService {
         await _notificationService.scheduleAlarm(alarm);
       }
     }
-    print('Scheduled ${alarms.length} alarms');
+    debugPrint('Scheduled ${alarms.length} alarms');
   }
 
   Future<void> scheduleAlarm(AlarmModel alarm) async {
     await _notificationService.scheduleAlarm(alarm);
+  }
+
+  /// One-shot ring at an exact moment (snoozes, test alarms).
+  Future<void> scheduleAlarmAt(AlarmModel alarm, DateTime when) async {
+    await _notificationService.scheduleAlarmAt(alarm, when);
   }
 
   Future<void> cancelAlarm(String alarmId) async {

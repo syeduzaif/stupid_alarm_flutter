@@ -10,6 +10,7 @@ class AddAlarmViewModel extends BaseViewModel {
   final AlarmService _alarmService = locator<AlarmService>();
   final AlarmSchedulerService _alarmScheduler = locator<AlarmSchedulerService>();
   final NavigationService _navigationService = NavigationService();
+  final DialogService _dialogService = DialogService();
 
   // Form controllers and state
   late TextEditingController labelController;
@@ -115,15 +116,14 @@ class AddAlarmViewModel extends BaseViewModel {
       );
 
       // Save alarm
-      print('Saving alarm: $alarm');
       final bool success = await _alarmService.saveAlarm(alarm);
-      print('Save result: $success');
-      
+
       if (success) {
-        // Schedule the alarm notification
+        // Cancel any stale notifications before scheduling the new time
+        // (edits can change time, repeat days, or label).
+        await _alarmScheduler.cancelAlarm(alarm.id);
         await _alarmScheduler.scheduleAlarm(alarm);
-        print('Alarm scheduled successfully');
-        
+
         // Navigate back to home with result
         _navigationService.back(result: true);
       } else {
@@ -138,9 +138,11 @@ class AddAlarmViewModel extends BaseViewModel {
   }
 
   void _showErrorDialog(String message) {
-    // For now, just print the error
-    // In a real app, you'd show a proper dialog
-    print('Error: $message');
+    _dialogService.showDialog(
+      title: 'Oops',
+      description: message,
+      buttonTitle: 'OK',
+    );
   }
 
   @override

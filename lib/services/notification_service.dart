@@ -1,12 +1,20 @@
-import 'package:flutter/material.dart';
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import '../models/alarm_model.dart';
-import '../constants/app_constants.dart';
+import '../utils/alarm_schedule.dart';
+import '../utils/notification_id.dart';
 
 class NotificationService {
   static NotificationService? _instance;
-  final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _notifications =
+      FlutterLocalNotificationsPlugin();
+
+  /// Set by the app shell (main.dart). Invoked with the decoded alarm when
+  /// the user taps an alarm notification while the app process is alive.
+  void Function(AlarmModel alarm)? onAlarmTriggered;
 
   NotificationService._internal();
 
@@ -18,10 +26,13 @@ class NotificationService {
   Future<void> initialize() async {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
+    const DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings();
 
     const InitializationSettings initializationSettings =
         InitializationSettings(
       android: initializationSettingsAndroid,
+      iOS: initializationSettingsDarwin,
     );
 
     await _notifications.initialize(
@@ -29,77 +40,84 @@ class NotificationService {
       onDidReceiveNotificationResponse: _onNotificationTapped,
     );
 
-    // Request notification permissions
     await _requestPermissions();
   }
 
   Future<void> _requestPermissions() async {
-    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final androidPlugin = _notifications.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.requestNotificationsPermission();
     await androidPlugin?.requestExactAlarmsPermission();
   }
 
   void _onNotificationTapped(NotificationResponse response) {
-    // Handle notification tap - navigate to alarm ring screen
-    print('Notification tapped: ${response.payload}');
-    // TODO: Navigate to alarm ring screen
+    final alarm = alarmFromPayload(response.payload);
+    if (alarm != null) {
+      onAlarmTriggered?.call(alarm);
+    }
+  }
+
+  /// Decodes the alarm JSON stashed in every notification payload. Returns
+  /// null for missing or malformed payloads.
+  static AlarmModel? alarmFromPayload(String? payload) {
+    if (payload == null || payload.isEmpty) return null;
+    try {
+      return AlarmModel.fromMap(json.decode(payload) as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('Could not decode alarm payload: $e');
+      return null;
+    }
+  }
+
+  /// If the app process was cold-started from an alarm notification (tap or
+  /// full-screen intent), returns that alarm so the app can go straight to
+  /// the ring screen.
+  Future<AlarmModel?> getLaunchAlarm() async {
+    final details = await _notifications.getNotificationAppLaunchDetails();
+    if (details?.didNotificationLaunchApp ?? false) {
+      return alarmFromPayload(details!.notificationResponse?.payload);
+    }
+    return null;
   }
 
   Future<void> scheduleAlarm(AlarmModel alarm) async {
     if (!alarm.isEnabled) return;
 
     final now = DateTime.now();
-    final alarmDateTime = DateTime(
-      now.year,
-      now.month,
-      now.day,
-      alarm.time.hour,
-      alarm.time.minute,
-    );
-
-    // If alarm time has already passed today, schedule for tomorrow
-    DateTime scheduledTime = alarmDateTime;
-    if (alarmDateTime.isBefore(now)) {
-      scheduledTime = alarmDateTime.add(const Duration(days: 1));
-    }
-
-    // Handle repeat days
-    if (alarm.repeatDays.isNotEmpty) {
-      // For repeating alarms, schedule multiple notifications
-      for (int day in alarm.repeatDays) {
-        final daysUntilNext = _getDaysUntilNext(day, now.weekday);
-        final repeatDateTime = scheduledTime.add(Duration(days: daysUntilNext));
-        
-        await _scheduleNotification(
-          alarm.id + '_$day',
-          alarm.label,
-          'Time to wake up!',
-          repeatDateTime,
-          alarm,
-        );
-      }
-    } else {
-      // One-time alarm
-      await _scheduleNotification(
-        alarm.id,
-        alarm.label,
-        'Time to wake up!',
-        scheduledTime,
+    if (alarm.repeatDays.isEmpty) {
+      // One-time alarm: next occurrence of hh:mm.
+      await _zonedSchedule(
+        notificationIdFor(alarm.id),
+        nextAlarmOccurrence(alarm.time, now),
         alarm,
       );
+    } else {
+      // Repeating alarm: one weekly-repeating notification per weekday.
+      for (final day in alarm.repeatDays) {
+        await _zonedSchedule(
+          notificationIdFor('${alarm.id}_$day'),
+          nextAlarmOccurrence(alarm.time, now, weekday: day),
+          alarm,
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+        );
+      }
     }
-
-    print('Scheduled alarm: ${alarm.label} at $scheduledTime');
   }
 
-  Future<void> _scheduleNotification(
-    String id,
-    String title,
-    String body,
-    DateTime scheduledTime,
-    AlarmModel alarm,
-  ) async {
-    const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+  /// Schedules a one-shot ring at an exact moment. Used for snoozes and test
+  /// alarms, which need second precision rather than the next hh:mm.
+  Future<void> scheduleAlarmAt(AlarmModel alarm, DateTime when) async {
+    await _zonedSchedule(notificationIdFor(alarm.id), when, alarm);
+  }
+
+  Future<void> _zonedSchedule(
+    int id,
+    DateTime when,
+    AlarmModel alarm, {
+    DateTimeComponents? matchDateTimeComponents,
+  }) async {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
       'alarm_channel',
       'Alarm Notifications',
       channelDescription: 'Notifications for alarm reminders',
@@ -110,44 +128,41 @@ class NotificationService {
       visibility: NotificationVisibility.public,
       playSound: true,
       enableVibration: true,
+      audioAttributesUsage: AudioAttributesUsage.alarm,
     );
 
     const NotificationDetails notificationDetails = NotificationDetails(
       android: androidDetails,
+      iOS: DarwinNotificationDetails(presentAlert: true, presentSound: true),
     );
 
     await _notifications.zonedSchedule(
-      int.parse(id.replaceAll(RegExp(r'[^0-9]'), '')),
-      title,
-      body,
-      tz.TZDateTime.from(scheduledTime, tz.local),
+      id,
+      alarm.label,
+      'Time to wake up!',
+      tz.TZDateTime.from(when, tz.local),
       notificationDetails,
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      payload: alarm.id,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: matchDateTimeComponents,
+      payload: json.encode(alarm.toMap()),
     );
+
+    debugPrint('Scheduled "${alarm.label}" (#$id) for $when');
   }
 
-  int _getDaysUntilNext(int targetDay, int currentDay) {
-    // targetDay: 0=Sunday, 1=Monday, ..., 6=Saturday
-    // currentDay: 1=Monday, 2=Tuesday, ..., 7=Sunday
-    int currentDayOfWeek = currentDay == 7 ? 0 : currentDay;
-    
-    if (targetDay >= currentDayOfWeek) {
-      return targetDay - currentDayOfWeek;
-    } else {
-      return 7 - currentDayOfWeek + targetDay;
-    }
-  }
-
+  /// Cancels the alarm's one-time notification and all its per-weekday
+  /// repeats (ids are deterministic, so no bookkeeping is needed).
   Future<void> cancelAlarm(String alarmId) async {
-    await _notifications.cancel(int.parse(alarmId.replaceAll(RegExp(r'[^0-9]'), '')));
-    print('Cancelled alarm: $alarmId');
+    await _notifications.cancel(notificationIdFor(alarmId));
+    for (var day = 0; day < 7; day++) {
+      await _notifications.cancel(notificationIdFor('${alarmId}_$day'));
+    }
   }
 
   Future<void> cancelAllAlarms() async {
     await _notifications.cancelAll();
-    print('Cancelled all alarms');
   }
 
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {

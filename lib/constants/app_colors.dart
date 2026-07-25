@@ -47,8 +47,8 @@ class AppColors {
 
   static LinearGradient get alarmRingGradient => LinearGradient(
         colors: [
-          primaryRed.withOpacity(0.8),
-          secondaryOrange.withOpacity(0.8),
+          primaryRed.withValues(alpha: 0.8),
+          secondaryOrange.withValues(alpha: 0.8),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,

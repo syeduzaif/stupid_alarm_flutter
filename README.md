@@ -1,142 +1,103 @@
-<<<<<<< HEAD
 # 🚨 Stupid Alarm
 
 > "You can't snooze the alarm until you actually wake up and sit up!"
 
-A Flutter app built with Stacked Architecture (MVVM) that ensures you actually wake up before you can turn off the alarm.
+A Flutter alarm app that refuses to be dismissed until you physically sit up —
+verified by the phone's accelerometer. Built with Stacked (MVVM) for the
+**"Let's Create Stupid Apps with Me"** YouTube series.
 
-## 📱 Features
+## 📱 What it does
 
-### Core Features
-- ✅ **Smart Alarm System** - No snoozing until you physically sit up
-- ✅ **Motion Detection** - Uses phone sensors to detect when you sit up
-- ✅ **Beautiful UI** - Modern, playful design with smooth animations
-- ✅ **Multiple Alarm Sounds** - Choose from various alarm tones
-- ✅ **Snooze Control** - Limited snooze attempts in smart mode
-- ✅ **Dark Mode** - Beautiful dark theme support
+- ⏰ **Real alarms** — exact, full-screen notifications that fire even when the
+  app is closed and take over the lock screen (Android)
+- 🧠 **Smart Mode** — the dismiss button stays locked until you sit up and hold
+  the phone upright for 3 seconds; a progress bar tracks the hold, and flopping
+  back down resets it
+- 😴 **Snooze rules** — normal alarms get 3 snoozes max; Smart Mode gets none
+- 🔁 **Repeat days** — weekly repeating alarms per weekday
+- 🔊 **4 alarm sounds** — synthesized tones (classic, gentle, energetic,
+  bird-ish "nature") looped through the ring screen
+- ✅ **One-time alarms switch themselves off after ringing**, like a stock
+  alarm clock
+- 🌙 **Light / dark / system theme**, persisted, switchable from the home
+  screen
+- 🧪 **Test Alarm button** — rings in 5 seconds so you can try the whole flow
 
-### Technical Features
-- 🏗️ **Stacked Architecture** - Clean MVVM pattern
-- 🎨 **Responsive Design** - Works on all screen sizes
-- 💾 **Local Storage** - Alarms persist across app restarts
-- 🔔 **Notifications** - Local notifications for alarms
-- 📱 **Permissions** - Proper handling of sensors and notifications
-
-## 🏗️ Architecture
-
-This app follows the **Stacked Architecture** pattern with clean separation of concerns:
+## 🏗️ How it works
 
 ```
 lib/
-├── app/              # App configuration & theme
-├── constants/        # App constants (colors, text styles, etc.)
-├── models/           # Data models
-├── services/         # Business logic services
-└── ui/
-    ├── views/        # Views (UI)
-    └── widgets/      # Reusable widgets
+├── app/              # DI locator & theme
+├── constants/        # Colors, text styles, app constants
+├── models/           # AlarmModel, theme mode
+├── services/         # AlarmService (storage), NotificationService,
+│                     # AlarmSchedulerService
+├── utils/            # SitUpDetector, notification id hashing,
+│                     # next-occurrence date math
+└── ui/views/         # splash / home / add_alarm / alarm_ring (MVVM pairs)
 ```
 
-### Stacked Components
-- **Views**: UI widgets
-- **ViewModels**: Business logic (extends `BaseViewModel`)
-- **Services**: Reusable business logic
-- **Models**: Data structures
+The interesting parts:
 
-## 🚀 Getting Started
+- **Scheduling** — `flutter_local_notifications` `zonedSchedule` with
+  `exactAllowWhileIdle`; repeating alarms use `dayOfWeekAndTime` matching (one
+  weekly notification per selected weekday). Notification ids are FNV-1a
+  hashes of the alarm id (Android needs 32-bit ids; the alarm ids are
+  millisecond timestamps, which don't fit).
+- **Ring flow** — every notification carries the full alarm as a JSON payload.
+  Tapping it (or the full-screen intent launching the app from the lock
+  screen) decodes the payload and jumps straight to the ring screen, which
+  loops the chosen sound via `audioplayers` and vibrates until dismissed.
+- **Sit-up detection** (`utils/sit_up_detector.dart`) — the accelerometer is
+  low-pass filtered to isolate gravity. Lying down puts gravity on the phone's
+  Z axis; sitting up and holding the phone in front of you rotates it onto +Y.
+  The upright pose must be held continuously for 3 seconds — no shortcuts, and
+  shaking the phone doesn't fool it.
 
-### Prerequisites
-- Flutter SDK (latest stable version)
-- Dart SDK
-- Android Studio / VS Code with Flutter extensions
+## 🚀 Getting started
 
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd stupid_alarm
-```
-
-2. **Install dependencies**
 ```bash
 flutter pub get
-```
-
-3. **Run the app**
-```bash
 flutter run
 ```
 
-## 📦 Key Packages Used
+Regenerate the bundled sounds (optional):
 
-- **stacked** - MVVM architecture
-- **stacked_services** - Navigation & dialog services
-- **google_fonts** - Custom typography
-- **lottie** - Beautiful animations
-- **shared_preferences** - Local storage
-- **flutter_local_notifications** - Alarm notifications
-- **sensors_plus** - Motion detection
-- **permission_handler** - Runtime permissions
-- **vibration** - Haptic feedback
+```bash
+python3 tool/generate_sounds.py
+```
 
-## 🎨 Design
+Run the tests:
 
-### Color Palette
-- **Primary Red**: #FF4D4D
-- **Secondary Orange**: #FF9F1C
-- **Accent Blue**: #00C2FF
-- **Background Light**: #FFF5F5
-- **Background Dark**: #1E1E1E
-
-### Typography
-- **Headings**: Poppins (Bold)
-- **Body**: Lato (Regular)
-
-## 📝 Usage
-
-### Creating an Alarm
-1. Tap the **+** button on the home screen
-2. Set your desired time
-3. Choose an alarm sound
-4. Enable **Smart Mode** for sit-up verification
-5. Save the alarm
-
-### Using Smart Mode
-1. Enable Smart Mode when creating/editing an alarm
-2. When the alarm rings, you must physically sit up
-3. The phone's accelerometer detects your movement
-4. Only after verification can you turn off the alarm
-
-## 🔧 Development
-
-### Adding a New Feature
-1. Create a new service in `lib/services/`
-2. Create a view model in `lib/ui/views/[feature]/`
-3. Create a view in `lib/ui/views/[feature]/`
-4. Register services in `lib/app/app.locator.dart`
-
-### Running Tests
 ```bash
 flutter test
 ```
 
-## 🤝 Contributing
+## 📦 Key packages
 
-This is a demo app for the "Let's Create Stupid Apps with Me" YouTube series. Feel free to fork and modify!
+- **stacked / stacked_services** — MVVM + navigation
+- **flutter_local_notifications** + **timezone** — exact alarm scheduling
+- **audioplayers** — looped alarm sound on the ring screen
+- **sensors_plus** — accelerometer for sit-up verification
+- **shared_preferences** — alarm & settings persistence
+- **google_fonts** — Poppins headings, Lato body
+
+## ⚠️ Honest limitations
+
+- **Android-first.** iOS gets basic notification support, but no full-screen
+  lock-screen takeover and it hasn't been tested on a device.
+- The notification itself plays the system default sound; your chosen sound
+  starts when the ring screen opens.
+- The bundled sounds are procedurally generated placeholders (see
+  `tool/generate_sounds.py`) — swap in real recordings if you want nicer ones.
+- Battery-optimization settings on some OEMs (Xiaomi, Huawei…) can still delay
+  exact alarms; that's Android life.
+
+## 🎥 YouTube series
+
+Part of the "Let's Create Stupid Apps with Me" series — funny apps that solve
+real problems. This one solves the snooze button.
 
 ## 📄 License
 
-This project is open source and available under the MIT License.
-
-## 🎥 YouTube Series
-
-Part of the "Let's Create Stupid Apps with Me" series where we build funny yet smart apps solving real problems.
-
----
-
-**Built with ❤️ using Flutter and Stacked Architecture**
-=======
-# stupid_alarm_flutter
-A Flutter app that won’t let you snooze your alarm until you sit up 😴🚫. Built using Flutter + Stacked architecture for my YouTube series “Let’s Create Stupid App with Me.”
->>>>>>> dd8ecb4eb8dab15d54aca7cda4a452ba2468ac7f
+MIT — fork it, break it, wake up with it.

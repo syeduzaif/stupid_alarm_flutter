@@ -1,3 +1,10 @@
+import 'package:flutter/foundation.dart';
+
+/// App-wide notifier so a theme change from Settings applies immediately.
+/// Seeded from storage in main() and updated by the settings dialog.
+final ValueNotifier<AppThemeMode> appThemeModeNotifier =
+    ValueNotifier(AppThemeMode.system);
+
 enum AppThemeMode {
   light,
   dark,
