@@ -4,6 +4,7 @@ import 'package:timezone/data/latest.dart' as tz;
 import 'app/app.locator.dart';
 import 'app/app_theme.dart';
 import 'models/theme_mode_model.dart';
+import 'services/alarm_watcher_service.dart';
 import 'services/notification_service.dart';
 import 'services/storage_service.dart';
 import 'services/alarm_scheduler_service.dart';
@@ -30,6 +31,10 @@ void main() async {
   // Initialize alarm scheduler
   final alarmScheduler = locator<AlarmSchedulerService>();
   await alarmScheduler.initialize();
+
+  // Ring in-app when an alarm strikes while the user is inside the app
+  // (Android shows only a heads-up banner in that state).
+  locator<AlarmWatcherService>().start();
 
   // Seed the theme notifier before the first frame.
   appThemeModeNotifier.value = await locator<StorageService>().getThemeMode();

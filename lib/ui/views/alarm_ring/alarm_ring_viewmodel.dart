@@ -11,6 +11,7 @@ import '../../../app/app.locator.dart';
 import '../../../constants/app_constants.dart';
 import '../../../models/alarm_model.dart';
 import '../../../services/alarm_service.dart';
+import '../../../services/alarm_watcher_service.dart';
 import '../../../services/notification_service.dart';
 import '../../../utils/sit_up_detector.dart';
 import '../home/home_view.dart';
@@ -33,6 +34,7 @@ class AlarmRingViewModel extends BaseViewModel {
 
   final NotificationService _notificationService = NotificationService();
   final AlarmService _alarmService = locator<AlarmService>();
+  final AlarmWatcherService _watcher = locator<AlarmWatcherService>();
   final NavigationService _navigationService = NavigationService();
 
   AlarmModel? alarm;
@@ -61,6 +63,7 @@ class AlarmRingViewModel extends BaseViewModel {
 
   void initialize(AlarmModel alarmModel) {
     alarm = alarmModel;
+    _watcher.ringInProgress = true;
 
     _startAlarmSound();
     _startVibration();
@@ -133,7 +136,7 @@ class AlarmRingViewModel extends BaseViewModel {
 
   Future<void> stopAlarm() async {
     await _cleanup();
-    await _disableIfOneTime();
+    await _finishRing();
 
     _navigationService.clearStackAndShowView(const HomeView());
   }
@@ -145,7 +148,7 @@ class AlarmRingViewModel extends BaseViewModel {
     await _cleanup();
     // A one-time alarm has served its purpose once it rings; the pending
     // snooze notification carries the wake-up forward, not the base alarm.
-    await _disableIfOneTime();
+    await _finishRing();
 
     final snoozeTime =
         DateTime.now().add(Duration(minutes: current.snoozeDuration));
@@ -161,8 +164,31 @@ class AlarmRingViewModel extends BaseViewModel {
     );
 
     await _notificationService.scheduleAlarmAt(snoozeAlarm, snoozeTime);
+    // If the user is still in the app when the snooze lands, ring in-app.
+    _watcher.watchOneShot(snoozeAlarm, snoozeTime);
 
     _navigationService.clearStackAndShowView(const HomeView());
+  }
+
+  /// Post-ring bookkeeping: clear this ring's banner from the shade (a
+  /// full-screen-intent launch doesn't auto-dismiss it), restore weekly
+  /// repeats that the cancel dropped, and switch one-time alarms off.
+  Future<void> _finishRing() async {
+    _watcher.ringInProgress = false;
+
+    final current = alarm;
+    if (current == null) return;
+
+    await _notificationService.cancelAlarm(current.id);
+
+    if (current.repeatDays.isNotEmpty) {
+      final stored = await _alarmService.getAlarmById(current.id);
+      if (stored != null && stored.isEnabled) {
+        await _notificationService.scheduleAlarm(stored);
+      }
+    } else {
+      await _disableIfOneTime();
+    }
   }
 
   /// A one-time alarm that has rung should show as "off" on the home screen,
@@ -201,6 +227,7 @@ class AlarmRingViewModel extends BaseViewModel {
 
   @override
   void dispose() {
+    _watcher.ringInProgress = false;
     _cleanup();
     super.dispose();
   }

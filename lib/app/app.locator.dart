@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import '../services/alarm_service.dart';
+import '../services/alarm_watcher_service.dart';
 import '../services/storage_service.dart';
 import '../services/alarm_scheduler_service.dart';
 
@@ -15,4 +16,5 @@ void setupLocator() {
   locator.registerLazySingleton<AlarmService>(() => AlarmService());
   locator.registerLazySingleton<StorageService>(() => StorageService());
   locator.registerLazySingleton<AlarmSchedulerService>(() => AlarmSchedulerService());
+  locator.registerLazySingleton<AlarmWatcherService>(() => AlarmWatcherService());
 }

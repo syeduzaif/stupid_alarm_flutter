@@ -6,6 +6,7 @@ import '../../../models/alarm_model.dart';
 import '../../../models/theme_mode_model.dart';
 import '../../../services/alarm_service.dart';
 import '../../../services/alarm_scheduler_service.dart';
+import '../../../services/alarm_watcher_service.dart';
 import '../../../services/storage_service.dart';
 import 'add_alarm_view.dart';
 
@@ -92,5 +93,7 @@ class HomeViewModel extends BaseViewModel {
     );
 
     await _alarmScheduler.scheduleAlarmAt(testAlarm, ringAt);
+    // While the app stays open, the watcher rings in-app at the exact moment.
+    locator<AlarmWatcherService>().watchOneShot(testAlarm, ringAt);
   }
 }
